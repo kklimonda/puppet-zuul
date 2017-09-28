@@ -80,6 +80,7 @@ class zuul (
   $disk_limit_per_job = '',
   $python_version = 2,
   $zuulv3 = false,
+  $gearman_ssl_use_puppet = false,
   $gearman_client_ssl_cert = undef,
   $gearman_client_ssl_key = undef,
   $gearman_server_ssl_cert = undef,
@@ -161,12 +162,18 @@ class zuul (
     }
   }
 
+  $auxiliary_groups = str2bool("${gearman_ssl_use_puppet}") ? {
+    true    => ["puppet"],
+    default => [],
+  }
+
   user { 'zuul':
     ensure     => present,
     home       => '/home/zuul',
     shell      => '/bin/bash',
     gid        => 'zuul',
     managehome => true,
+    groups     => $auxiliary_groups,
     require    => Group['zuul'],
   }
 
@@ -218,58 +225,90 @@ class zuul (
     require => File['/etc/zuul'],
   }
 
-  if ($gearman_ssl_ca != undef) {
+  if str2bool("${gearman_ssl_use_puppet}") == true {
+
     file { '/etc/zuul/ssl/ca.pem':
-      ensure  => file,
-      content => $gearman_ssl_ca,
-      group   => 'zuul',
-      mode    => '0644',
-      owner   => 'zuul',
-      require => File['/etc/zuul/ssl'],
+      ensure => symlink,
+      target => '/var/lib/puppet/ssl/certs/ca.pem',
     }
-  }
 
-  if ($gearman_client_ssl_cert != undef) {
     file { '/etc/zuul/ssl/client.pem':
-      ensure  => file,
-      content => $gearman_client_ssl_cert,
-      group   => 'zuul',
-      mode    => '0644',
-      owner   => 'zuul',
-      require => File['/etc/zuul/ssl'],
+      ensure => symlink,
+      target => "/var/lib/puppet/ssl/certs/${::clientcert}.pem",
     }
-  }
 
-  if ($gearman_client_ssl_key != undef) {
     file { '/etc/zuul/ssl/client.key':
-      ensure  => file,
-      content => $gearman_client_ssl_key,
-      group   => 'zuul',
-      mode    => '0640',
-      owner   => 'zuul',
-      require => File['/etc/zuul/ssl'],
+      ensure => symlink,
+      target => "/var/lib/puppet/ssl/private_keys/${::clientcert}.pem",
     }
-  }
 
-  if ($gearman_server_ssl_cert != undef) {
-    file { '/etc/zuul/ssl/server.pem':
-      ensure  => file,
-      content => $gearman_server_ssl_cert,
-      group   => 'zuul',
-      mode    => '0644',
-      owner   => 'zuul',
-      require => File['/etc/zuul/ssl'],
+    if ($gearman_server == "${::clientcert}") {
+      file { '/etc/zuul/ssl/server.pem':
+        ensure => symlink,
+        target => "/var/lib/puppet/ssl/certs/${::clientcert}.pem",
+      }
+
+      file { '/etc/zuul/ssl/server.key':
+        ensure => symlink,
+        target => "/var/lib/puppet/ssl/private_keys/${::clientcert}.pem",
+      }
     }
-  }
 
-  if ($gearman_server_ssl_key != undef) {
-    file { '/etc/zuul/ssl/server.key':
-      ensure  => file,
-      content => $gearman_server_ssl_key,
-      group   => 'zuul',
-      mode    => '0640',
-      owner   => 'zuul',
-      require => File['/etc/zuul/ssl'],
+  } else {
+
+    if ($gearman_ssl_ca != undef) {
+      file { '/etc/zuul/ssl/ca.pem':
+        ensure  => file,
+        content => $gearman_ssl_ca,
+        group   => 'zuul',
+        mode    => '0644',
+        owner   => 'zuul',
+        require => File['/etc/zuul/ssl'],
+      }
+    }
+
+    if ($gearman_client_ssl_cert != undef) {
+      file { '/etc/zuul/ssl/client.pem':
+        ensure  => file,
+        content => $gearman_client_ssl_cert,
+        group   => 'zuul',
+        mode    => '0644',
+        owner   => 'zuul',
+        require => File['/etc/zuul/ssl'],
+      }
+    }
+
+    if ($gearman_client_ssl_key != undef) {
+      file { '/etc/zuul/ssl/client.key':
+        ensure  => file,
+        content => $gearman_client_ssl_key,
+        group   => 'zuul',
+        mode    => '0640',
+        owner   => 'zuul',
+        require => File['/etc/zuul/ssl'],
+      }
+    }
+
+    if ($gearman_server_ssl_cert != undef) {
+      file { '/etc/zuul/ssl/server.pem':
+        ensure  => file,
+        content => $gearman_server_ssl_cert,
+        group   => 'zuul',
+        mode    => '0644',
+        owner   => 'zuul',
+        require => File['/etc/zuul/ssl'],
+      }
+    }
+
+    if ($gearman_server_ssl_key != undef) {
+      file { '/etc/zuul/ssl/server.key':
+        ensure  => file,
+        content => $gearman_server_ssl_key,
+        group   => 'zuul',
+        mode    => '0640',
+        owner   => 'zuul',
+        require => File['/etc/zuul/ssl'],
+      }
     }
   }
 
