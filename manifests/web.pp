@@ -26,16 +26,21 @@ class zuul::web (
     name       => 'zuul-web',
     enable     => true,
     hasrestart => true,
-    require    => [File['/etc/init.d/zuul-web'],
+    require    => [File['/lib/systemd/system/zuul-web.service'],
                   Class['zuul::systemd_reload']]
   }
 
   file { '/etc/init.d/zuul-web':
+    ensure => absent,
+    notify => Class['zuul::systemd_reload'],
+  }
+
+  file { '/lib/systemd/system/zuul-web.service':
     ensure => present,
     owner  => 'root',
     group  => 'root',
-    mode   => '0555',
-    source => 'puppet:///modules/zuul/zuul-web.init',
+    mode   => '0644',
+    source => 'puppet:///modules/zuul/zuul-web.service',
     notify => Class['zuul::systemd_reload'],
   }
 

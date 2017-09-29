@@ -42,27 +42,20 @@ class zuul::scheduler (
       }
   }
 
-  if ($::operatingsystem == 'Ubuntu') and ($::operatingsystemrelease >= '16.04') {
-    # This is a hack to make sure that systemd is aware of the new service
-    # before we attempt to start it.
-    exec { 'zuul-scheduler-systemd-daemon-reload':
-      command     => '/bin/systemctl daemon-reload',
-      before      => Service['zuul-scheduler'],
-      subscribe   => File['/etc/init.d/zuul-scheduler'],
-      refreshonly => true,
-    }
-  }
   service { 'zuul-scheduler':
     ensure     => $ensure,
     enable     => true,
     hasrestart => true,
-    require    => [File['/etc/init.d/zuul-scheduler'],
+    require    => [File['/lib/systemd/system/zuul-scheduler.service'],
                   Class['zuul::systemd_reload']]
   }
 
   exec { 'zuul-reload':
-    command     => '/etc/init.d/zuul-scheduler reload',
-    require     => File['/etc/init.d/zuul-scheduler'],
+    command     => '/bin/systemctl reload zuul-scheduler',
+    require     => [
+      File['/lib/systemd/system/zuul-scheduler.service'],
+      Class['::zuul::systemd_reload']
+    ],
     refreshonly => true,
   }
 

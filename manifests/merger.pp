@@ -24,7 +24,7 @@ class zuul::merger (
     name       => 'zuul-merger',
     enable     => true,
     hasrestart => true,
-    require    => [File['/etc/init.d/zuul-merger'],
+    require    => [File['/lib/systemd/system/zuul-merger.service'],
                   Class['zuul::systemd_reload']]
   }
 

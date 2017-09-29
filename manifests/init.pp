@@ -506,49 +506,58 @@ class zuul (
   }
 
   file { '/etc/init.d/zuul':
-    ensure => present,
-    owner  => 'root',
-    group  => 'root',
-    mode   => '0555',
-    source => 'puppet:///modules/zuul/zuul.init',
+    ensure => absent,
     notify => Class['zuul::systemd_reload'],
   }
 
   file { '/etc/init.d/zuul-scheduler':
-    ensure => present,
-    owner  => 'root',
-    group  => 'root',
-    mode   => '0555',
-    source => 'puppet:///modules/zuul/zuul-scheduler.init',
+    ensure => absent,
     notify => Class['zuul::systemd_reload'],
   }
 
   file { '/etc/init.d/zuul-merger':
-    ensure => present,
-    owner  => 'root',
-    group  => 'root',
-    mode   => '0555',
-    source => 'puppet:///modules/zuul/zuul-merger.init',
+    ensure => absent,
     notify => Class['zuul::systemd_reload'],
   }
 
   file { '/etc/init.d/zuul-launcher':
-    ensure => present,
-    owner  => 'root',
-    group  => 'root',
-    mode   => '0555',
-    source => 'puppet:///modules/zuul/zuul-launcher.init',
+    ensure => absent,
     notify => Class['zuul::systemd_reload'],
   }
 
   file { '/etc/init.d/zuul-executor':
+    ensure => absent,
+    notify => Class['zuul::systemd_reload'],
+  }
+
+  file { '/lib/systemd/system/zuul-scheduler.service':
     ensure => present,
     owner  => 'root',
     group  => 'root',
-    mode   => '0555',
-    source => 'puppet:///modules/zuul/zuul-executor.init',
+    mode   => '0644',
+    source => 'puppet:///modules/zuul/zuul-scheduler.service',
     notify => Class['zuul::systemd_reload'],
   }
+
+  file { '/lib/systemd/system/zuul-executor.service':
+    ensure => present,
+    owner  => 'root',
+    group  => 'root',
+    mode   => '0644',
+    source => 'puppet:///modules/zuul/zuul-executor.service',
+    notify => Class['zuul::systemd_reload'],
+  }
+
+  file { '/lib/systemd/system/zuul-merger.service':
+    ensure => present,
+    owner  => 'root',
+    group  => 'root',
+    mode   => '0644',
+    source => 'puppet:///modules/zuul/zuul-merger.service',
+    notify => Class['zuul::systemd_reload'],
+  }
+
+
 
   if $proxy_ssl_cert_file_contents == '' {
     $ssl = false
