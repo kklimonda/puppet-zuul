@@ -47,7 +47,7 @@ class zuul::executor (
     exec { 'zuul-executor-systemd-daemon-reload':
       command     => '/bin/systemctl daemon-reload',
       before      => Service['zuul-executor'],
-      subscribe   => File['/etc/init.d/zuul-executor'],
+      subscribe   => File['/lib/systemd/system/zuul-executor.service'],
       refreshonly => true,
     }
   }
@@ -57,7 +57,7 @@ class zuul::executor (
     name       => 'zuul-executor',
     enable     => true,
     hasrestart => true,
-    require    => [File['/etc/init.d/zuul-executor'],
+    require    => [File['/lib/systemd/system/zuul-executor.service'],
                   Class['zuul::systemd_reload']]
   }
 
