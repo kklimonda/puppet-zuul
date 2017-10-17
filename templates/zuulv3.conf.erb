@@ -23,6 +23,7 @@ ssl_cert=/etc/zuul/ssl/server.pem
 <% if @gearman_server_ssl_key != nil -%>
 ssl_key=/etc/zuul/ssl/server.key
 <% end -%>
+port=<%= @gearman_listen_port %>
 
 [scheduler]
 tenant_config=/etc/zuul/layout/<%= @tenant_file_name %>
