@@ -87,6 +87,7 @@ class zuul (
   $gearman_server_ssl_cert = undef,
   $gearman_server_ssl_key = undef,
   $gearman_ssl_ca = undef,
+  $gearman_listen_port = '4730',
   $zuul_web_url = 'http://127.0.0.1:9000',
   $zuul_scheduler_url = 'http://127.0.0.1:8001',
   $site_variables_yaml_file = undef,
