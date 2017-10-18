@@ -1,5 +1,6 @@
 [gearman]
 server=<%= @gearman_server %>
+port=<%= @gearman_port %>
 check_job_registration=<%= @gearman_check_job_registration %>
 <% if @gearman_ssl_ca != nil -%>
 ssl_ca=/etc/zuul/ssl/ca.pem
