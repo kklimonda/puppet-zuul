@@ -21,6 +21,7 @@ class zuul (
   $vhost_name = $::fqdn,
   $serveradmin = "webmaster@${::fqdn}",
   $gearman_server = '127.0.0.1',
+  $gearman_port = '4730',
   $gearman_check_job_registration = true,
   $internal_gearman = true,
   $gerrit_server = '',
