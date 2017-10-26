@@ -24,6 +24,7 @@ class zuul (
   $gearman_port = '4730',
   $gearman_check_job_registration = true,
   $internal_gearman = true,
+  $finger_port = 79,
   $gerrit_server = '',
   $gerrit_user = '',
   $gerrit_baseurl = '',

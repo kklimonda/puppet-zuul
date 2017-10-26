@@ -59,6 +59,9 @@ git_user_name=<%= @git_name %>
 [executor]
 log_config=/etc/zuul/executor-logging.conf
 job_dir=/var/lib/zuul/builds
+<% if @finger_port != 79 -%>
+finger_port=<%= @finger_port %>
+<% end -%>
 <% if @site_variables_yaml_file != nil -%>
 variables=/etc/zuul/site-variables.yaml
 <% end -%>
