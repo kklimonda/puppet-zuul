@@ -173,6 +173,7 @@ class zuul (
 
   user { 'zuul':
     ensure     => present,
+    system     => true,
     home       => '/home/zuul',
     shell      => '/bin/bash',
     gid        => 'zuul',
@@ -183,6 +184,7 @@ class zuul (
 
   group { 'zuul':
     ensure => present,
+    system     => true,
   }
 
   vcsrepo { '/opt/zuul':
