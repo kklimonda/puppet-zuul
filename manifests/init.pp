@@ -92,6 +92,7 @@ class zuul (
   $zuul_web_url = 'http://127.0.0.1:9000',
   $zuul_scheduler_url = 'http://127.0.0.1:8001',
   $site_variables_yaml_file = undef,
+  $zuul_tenant_name = undef,
 ) {
   include ::httpd
   include ::pip
@@ -107,11 +108,15 @@ class zuul (
     $pip_command = 'pip'
   }
 
+  if ($zuul_tenant_name) {
+    $zuul_web_full_url = "${zuul_web_url}/${zuul_tenant_name}"
+  } else {
+    $zuul_web_full_url = $zuul_web_url
+  }
+
   $packages = [
     'libffi-dev',
     'libssl-dev',
-    'python-paste',
-    'python-webob',
   ]
 
   package { $packages:
@@ -131,37 +136,39 @@ class zuul (
     require  => Class['pip'],
   }
 
-  # needed by python-keystoneclient, has system bindings
-  # Zuul and Nodepool both need it, so make it conditional
-  if ! defined(Package['python-lxml']) {
-    package { 'python-lxml':
-      ensure => present,
+  if ! $zuulv3 {
+    # needed by python-keystoneclient, has system bindings
+    # Zuul and Nodepool both need it, so make it conditional
+    if ! defined(Package['python-lxml']) {
+      package { 'python-lxml':
+        ensure => present,
+      }
     }
-  }
 
-  # A lot of things need yaml, be conservative requiring this package to avoid
-  # conflicts with other modules.
-  if ! defined(Package['python-yaml']) {
-    package { 'python-yaml':
-      ensure => present,
+    # A lot of things need yaml, be conservative requiring this package to avoid
+    # conflicts with other modules.
+    if ! defined(Package['python-yaml']) {
+      package { 'python-yaml':
+        ensure => present,
+      }
     }
-  }
 
-  if ! defined(Package['python-paramiko']) {
-    package { 'python-paramiko':
-      ensure   => present,
+    if ! defined(Package['python-paramiko']) {
+      package { 'python-paramiko':
+        ensure   => present,
+      }
     }
-  }
 
-  if ! defined(Package['python-daemon']) {
-    package { 'python-daemon':
-      ensure => present,
+    if ! defined(Package['python-daemon']) {
+      package { 'python-daemon':
+        ensure => present,
+      }
     }
-  }
 
-  if ! defined(Package['yui-compressor']) {
-    package { 'yui-compressor':
-      ensure => present,
+    if ! defined(Package['yui-compressor']) {
+      package { 'yui-compressor':
+        ensure => present,
+      }
     }
   }
 
@@ -201,15 +208,17 @@ class zuul (
       Package['build-essential'],
       Package['libffi-dev'],
       Package['libssl-dev'],
-      Package['python-daemon'],
-      Package['python-lxml'],
-      Package['python-paramiko'],
-      Package['python-paste'],
-      Package['python-webob'],
-      Package['python-yaml'],
       Package['yappi'],
-      Package['yui-compressor'],
     ],
+  }
+
+  if ! $zuulv3 {
+    Exec['install_zuul'] -> Package['python-daemon']
+    Exec['install_zuul'] -> Package['python-daemon']
+    Exec['install_zuul'] -> Package['python-lxml']
+    Exec['install_zuul'] -> Package['python-paramiko']
+    Exec['install_zuul'] -> Package['python-yaml']
+    Exec['install_zuul'] -> Package['yui-compressor']
   }
 
   file { '/etc/zuul':
@@ -317,8 +326,12 @@ class zuul (
 
   if $zuulv3 {
     $zuul_conf_content = template('zuul/zuulv3.conf.erb')
+    $zuul_merger_source = 'puppet:///modules/zuul/zuul-mergerv3.init'
+    $zuul_scheduler_source = 'puppet:///modules/zuul/zuul-schedulerv3.init'
   } else {
     $zuul_conf_content = template('zuul/zuul.conf.erb')
+    $zuul_merger_source = 'puppet:///modules/zuul/zuul-merger.init'
+    $zuul_scheduler_source = 'puppet:///modules/zuul/zuul-scheduler.init'
   }
 
 # TODO: We should put in  notify either Service['zuul'] or Exec['zuul-reload']
@@ -395,117 +408,161 @@ class zuul (
     content => $zuul_ssh_private_key,
   }
 
-  file { '/var/lib/zuul/www':
-    ensure  => directory,
-    require => File['/var/lib/zuul'],
+  if $zuulv3 {
+    package { 'libjs-jquery':
+      ensure => absent,
+    }
+    $v2_web_dirs = [
+      '/opt/twitter-bootstrap',
+      '/opt/jquery-visibility',
+      '/var/lib/zuul/www',
+      '/opt/graphitejs',
+    ]
+
+    file { $v2_web_dirs:
+      ensure => absent,
+    }
+
+  } else {
+
+    file { '/var/lib/zuul/www':
+      ensure  => directory,
+      require => File['/var/lib/zuul'],
+    }
+
+    file { '/var/lib/zuul/www/lib':
+      ensure  => directory,
+      require => File['/var/lib/zuul/www'],
+    }
+
+    package { 'libjs-jquery':
+      ensure => present,
+    }
+
+    file { '/var/lib/zuul/www/jquery.min.js':
+      ensure => absent
+    }
+
+    file { '/var/lib/zuul/www/lib/jquery.min.js':
+      ensure  => link,
+      target  => '/usr/share/javascript/jquery/jquery.min.js',
+      require => [File['/var/lib/zuul/www/lib'],
+                  Package['libjs-jquery']],
+    }
+
+    vcsrepo { '/opt/twitter-bootstrap':
+      ensure   => latest,
+      provider => git,
+      revision => 'v3.1.1',
+      source   => 'https://github.com/twbs/bootstrap.git',
+    }
+
+    file { '/var/lib/zuul/www/bootstrap':
+      ensure => absent
+    }
+
+    file { '/var/lib/zuul/www/lib/bootstrap':
+      ensure  => link,
+      target  => '/opt/twitter-bootstrap/dist',
+      require => [File['/var/lib/zuul/www/lib'],
+                  Package['libjs-jquery'],
+                  Vcsrepo['/opt/twitter-bootstrap']],
+    }
+
+    vcsrepo { '/opt/jquery-visibility':
+      ensure   => latest,
+      provider => git,
+      revision => 'master',
+      source   => 'https://github.com/mathiasbynens/jquery-visibility.git',
+    }
+
+    file { '/var/lib/zuul/www/jquery-visibility.min.js':
+      ensure => absent
+    }
+
+    exec { 'install-jquery-visibility':
+      command     => 'yui-compressor -o /var/lib/zuul/www/lib/jquery-visibility.js /opt/jquery-visibility/jquery-visibility.js',
+      path        => 'bin:/usr/bin',
+      refreshonly => true,
+      subscribe   => Vcsrepo['/opt/jquery-visibility'],
+      require     => [File['/var/lib/zuul/www/lib'],
+                      Package['yui-compressor'],
+                      Vcsrepo['/opt/jquery-visibility']],
+    }
+
+    vcsrepo { '/opt/graphitejs':
+      ensure   => latest,
+      provider => git,
+      revision => 'master',
+      source   => 'https://github.com/prestontimmons/graphitejs.git',
+    }
+
+    file { '/var/lib/zuul/www/jquery.graphite.js':
+      ensure => absent
+    }
+
+    file { '/var/lib/zuul/www/lib/jquery.graphite.js':
+      ensure  => link,
+      target  => '/opt/graphitejs/jquery.graphite.js',
+      require => [File['/var/lib/zuul/www/lib'],
+                  Vcsrepo['/opt/graphitejs']],
+    }
+
+    file { '/var/lib/zuul/www/index.html':
+      ensure  => link,
+      target  => '/opt/zuul/etc/status/public_html/index.html',
+      require => File['/var/lib/zuul/www'],
+    }
+
+    file { '/var/lib/zuul/www/styles':
+      ensure  => link,
+      target  => '/opt/zuul/etc/status/public_html/styles',
+      require => File['/var/lib/zuul/www'],
+    }
+
+    file { '/var/lib/zuul/www/zuul.app.js':
+      ensure  => link,
+      target  => '/opt/zuul/etc/status/public_html/zuul.app.js',
+      require => File['/var/lib/zuul/www'],
+    }
+
+    file { '/var/lib/zuul/www/jquery.zuul.js':
+      ensure  => link,
+      target  => '/opt/zuul/etc/status/public_html/jquery.zuul.js',
+      require => File['/var/lib/zuul/www'],
+    }
+
+    file { '/var/lib/zuul/www/images':
+      ensure  => link,
+      target  => '/opt/zuul/etc/status/public_html/images',
+      require => File['/var/lib/zuul/www'],
+    }
   }
 
-  file { '/var/lib/zuul/www/lib':
-    ensure  => directory,
-    require => File['/var/lib/zuul/www'],
-  }
+  if $zuulv3 {
+    file { '/etc/default/zuul-executor':
+      ensure  => present,
+      mode    => '0444',
+      content => "PIDFILE=/var/run/zuul/executor.pid\n",
+    }
 
-  package { 'libjs-jquery':
-    ensure => present,
-  }
+    file { '/etc/default/zuul-scheduler':
+      ensure  => present,
+      mode    => '0444',
+      content => "PIDFILE=/var/run/zuul/scheduler.pid\n",
+    }
 
-  file { '/var/lib/zuul/www/jquery.min.js':
-    ensure => absent
-  }
+    file { '/etc/default/zuul-merger':
+      ensure  => present,
+      mode    => '0444',
+      content => "PIDFILE=/var/run/zuul/merger.pid\n",
+    }
 
-  file { '/var/lib/zuul/www/lib/jquery.min.js':
-    ensure  => link,
-    target  => '/usr/share/javascript/jquery/jquery.min.js',
-    require => [File['/var/lib/zuul/www/lib'],
-                Package['libjs-jquery']],
-  }
-
-  vcsrepo { '/opt/twitter-bootstrap':
-    ensure   => latest,
-    provider => git,
-    revision => 'v3.1.1',
-    source   => 'https://github.com/twbs/bootstrap.git',
-  }
-
-  file { '/var/lib/zuul/www/bootstrap':
-    ensure => absent
-  }
-
-  file { '/var/lib/zuul/www/lib/bootstrap':
-    ensure  => link,
-    target  => '/opt/twitter-bootstrap/dist',
-    require => [File['/var/lib/zuul/www/lib'],
-                Package['libjs-jquery'],
-                Vcsrepo['/opt/twitter-bootstrap']],
-  }
-
-  vcsrepo { '/opt/jquery-visibility':
-    ensure   => latest,
-    provider => git,
-    revision => 'master',
-    source   => 'https://github.com/mathiasbynens/jquery-visibility.git',
-  }
-
-  file { '/var/lib/zuul/www/jquery-visibility.min.js':
-    ensure => absent
-  }
-
-  exec { 'install-jquery-visibility':
-    command     => 'yui-compressor -o /var/lib/zuul/www/lib/jquery-visibility.js /opt/jquery-visibility/jquery-visibility.js',
-    path        => 'bin:/usr/bin',
-    refreshonly => true,
-    subscribe   => Vcsrepo['/opt/jquery-visibility'],
-    require     => [File['/var/lib/zuul/www/lib'],
-                    Package['yui-compressor'],
-                    Vcsrepo['/opt/jquery-visibility']],
-  }
-
-  vcsrepo { '/opt/graphitejs':
-    ensure   => latest,
-    provider => git,
-    revision => 'master',
-    source   => 'https://github.com/prestontimmons/graphitejs.git',
-  }
-
-  file { '/var/lib/zuul/www/jquery.graphite.js':
-    ensure => absent
-  }
-
-  file { '/var/lib/zuul/www/lib/jquery.graphite.js':
-    ensure  => link,
-    target  => '/opt/graphitejs/jquery.graphite.js',
-    require => [File['/var/lib/zuul/www/lib'],
-                Vcsrepo['/opt/graphitejs']],
-  }
-
-  file { '/var/lib/zuul/www/index.html':
-    ensure  => link,
-    target  => '/opt/zuul/etc/status/public_html/index.html',
-    require => File['/var/lib/zuul/www'],
-  }
-
-  file { '/var/lib/zuul/www/styles':
-    ensure  => link,
-    target  => '/opt/zuul/etc/status/public_html/styles',
-    require => File['/var/lib/zuul/www'],
-  }
-
-  file { '/var/lib/zuul/www/zuul.app.js':
-    ensure  => link,
-    target  => '/opt/zuul/etc/status/public_html/zuul.app.js',
-    require => File['/var/lib/zuul/www'],
-  }
-
-  file { '/var/lib/zuul/www/jquery.zuul.js':
-    ensure  => link,
-    target  => '/opt/zuul/etc/status/public_html/jquery.zuul.js',
-    require => File['/var/lib/zuul/www'],
-  }
-
-  file { '/var/lib/zuul/www/images':
-    ensure  => link,
-    target  => '/opt/zuul/etc/status/public_html/images',
-    require => File['/var/lib/zuul/www'],
+    file { '/etc/default/zuul-web':
+      ensure  => present,
+      mode    => '0444',
+      content => "PIDFILE=/var/run/zuul/web.pid\n",
+    }
   }
 
   file { '/etc/init.d/zuul':

@@ -1,17 +1,7 @@
 <VirtualHost *:80>
   ServerName <%= @vhost_name %>
   ServerAdmin <%= @serveradmin %>
-  DocumentRoot /var/lib/zuul/www
 
-  <Directory /var/lib/zuul/www>
-      <IfVersion >= 2.4>
-          Require all granted
-      </IfVersion>
-      <IfVersion < 2.4>
-          Order deny,allow
-          Allow from all
-      </IfVersion>
-  </Directory>
   <Directory /usr/lib/git-core>
       <IfVersion >= 2.4>
           Require all granted
@@ -31,15 +21,21 @@
   RewriteEngine on
   <% @block_referers.each do |referer| -%>
   RewriteCond %{HTTP_REFERER} =<%= referer %>
+  RewriteRule ^/status - [F]
+  RewriteCond %{HTTP_REFERER} =<%= referer %>
   RewriteRule ^/status.json - [F]
   <% end -%>
-  RewriteRule ^/keys/(.*) <%= @zuul_status_url %>/keys/$1 [P]
+
+<% unless @zuulv3 %>
   RewriteRule ^/status.json$ <%= @zuul_status_url %>/status.json [P]
   RewriteRule ^/status/(.*) <%= @zuul_status_url %>/status/$1 [P]
-  RewriteRule ^/connection/(.*) <%= @zuul_scheduler_url %>/connection/$1 [P]
-  RewriteRule ^/console-stream <%= @zuul_web_url.sub('http://', 'ws://') %>/console-stream [P]
-  RewriteRule ^/static/(.*) <%= @zuul_web_url %>/static/$1 [P]
-  RewriteRule ^/jobs/(.*) <%= @zuul_web_url %>/jobs/$1 [P]
+<% end %>
+
+<% if @zuulv3 %>
+  RewriteRule ^/console-stream <%= @zuul_web_full_url.sub('http://', 'ws://') %>/console-stream [P]
+  RewriteRule ^/(.*)$ <%= @zuul_web_full_url %>/$1 [P]
+  RewriteRule ^/$ <%= @zuul_web_full_url %>/status.html [P]
+<% end %>
 
   AddOutputFilterByType DEFLATE application/json
 
@@ -53,7 +49,12 @@
   <IfModule mod_cache.c>
     CacheDefaultExpire 5
     <IfModule mod_mem_cache.c>
+<% if @zuulv3 %>
+      CacheEnable mem /status
       CacheEnable mem /status.json
+<% else %>
+      CacheEnable mem /status.json
+<% end %>
       # 12MByte total cache size.
       MCacheSize 12288
       MCacheMaxObjectCount 10
@@ -63,7 +64,12 @@
       MCacheMaxStreamingBuffer 8388608
     </IfModule>
     <IfModule mod_cache_disk.c>
+<% if @zuulv3 %>
+      CacheEnable disk /status
       CacheEnable disk /status.json
+<% else %>
+      CacheEnable disk /status.json
+<% end %>
       CacheRoot /var/cache/apache2/mod_cache_disk
     </IfModule>
   </IfModule>
@@ -101,15 +107,21 @@
   RewriteEngine on
   <% @block_referers.each do |referer| -%>
   RewriteCond %{HTTP_REFERER} =<%= referer %>
+  RewriteRule ^/status - [F]
+  RewriteCond %{HTTP_REFERER} =<%= referer %>
   RewriteRule ^/status.json - [F]
   <% end -%>
-  RewriteRule ^/keys/(.*) <%= @zuul_status_url %>/opencontrail/keys/$1 [P]
-  RewriteRule ^/status.json$ <%= @zuul_status_url %>/opencontrail/status.json [P]
-  RewriteRule ^/status/(.*) <%= @zuul_status_url %>/opencontrail/status/$1 [P]
-  RewriteRule ^/connection/(.*) <%= @zuul_scheduler_url %>/connection/$1 [P]
-  RewriteRule ^/console-stream <%= @zuul_web_url.sub('http://', 'ws://') %>/console-stream [P]
-  RewriteRule ^/static/(.*) <%= @zuul_web_url %>/static/$1 [P]
-  RewriteRule ^/jobs/(.*) <%= @zuul_web_url %>/jobs/$1 [P]
+
+<% unless @zuulv3 %>
+  RewriteRule ^/status.json$ <%= @zuul_status_url %>/status.json [P]
+  RewriteRule ^/status/(.*) <%= @zuul_status_url %>/status/$1 [P]
+<% end %>
+
+<% if @zuulv3 %>
+  RewriteRule ^/console-stream <%= @zuul_web_full_url.sub('http://', 'ws://') %>/console-stream [P]
+  RewriteRule ^/(.*)$ <%= @zuul_web_full_url %>/$1 [P]
+  RewriteRule ^/$ <%= @zuul_web_full_url %>/status.html [P]
+<% end %>
 
   AddOutputFilterByType DEFLATE application/json
 
@@ -123,7 +135,12 @@
   <IfModule mod_cache.c>
     CacheDefaultExpire 5
     <IfModule mod_mem_cache.c>
+<% if @zuulv3 %>
+      CacheEnable mem /status
       CacheEnable mem /status.json
+<% else %>
+      CacheEnable mem /status.json
+<% end %>
       # 12MByte total cache size.
       MCacheSize 12288
       MCacheMaxObjectCount 10
@@ -133,7 +150,12 @@
       MCacheMaxStreamingBuffer 8388608
     </IfModule>
     <IfModule mod_cache_disk.c>
+<% if @zuulv3 %>
+      CacheEnable disk /status
       CacheEnable disk /status.json
+<% else %>
+      CacheEnable disk /status.json
+<% end %>
       CacheRoot /var/cache/apache2/mod_cache_disk
     </IfModule>
   </IfModule>

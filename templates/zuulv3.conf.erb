@@ -31,9 +31,6 @@ tenant_config=/etc/zuul/layout/<%= @tenant_file_name %>
 log_config=/etc/zuul/logging.conf
 state_dir=/var/lib/zuul
 
-[webapp]
-status_url=<%= @status_url %>
-
 [zookeeper]
 hosts=<%= @zookeeper_hosts %>
 <% if @zookeeper_session_timeout != nil -%>
@@ -79,12 +76,14 @@ disk_limit_per_job=<%= @disk_limit_per_job %>
 
 [web]
 log_config=/etc/zuul/web-logging.conf
+static_path=/opt/zuul-web/content
 <% if @web_listen_address != "" -%>
 listen_address=<%= @web_listen_address %>
 <% end -%>
 <% if @web_listen_port != "" -%>
 listen_port=<%= @web_listen_port %>
 <% end -%>
+status_url=<%= @status_url %>
 
 <% @connections.each do |connection| -%>
 [connection "<%= connection['name'] %>"]

@@ -1,4 +1,18 @@
+# coding: utf-8
 require 'puppet-openstack_infra_spec_helper/spec_helper_acceptance'
+
+# https://blog.lorentzca.me/add-custom-matcher-of-serverspec/
+# 既存のリソースタイプにマッチャーを追加する覚書き
+class Specinfra::Command::Base::Package < Specinfra::Command::Base
+  class << self
+    def check_is_installed_by_pip3(name, version=nil)
+      regexp = "^#{name} "
+      cmd = "pip3 list | grep -iw -- #{escape(regexp)}"
+      cmd = "#{cmd} | grep -w -- #{escape(version)}" if version
+      cmd
+    end
+  end
+end
 
 describe 'puppet-zuul module', :if => ['debian', 'ubuntu'].include?(os[:family]) do
   def pp_path
@@ -50,13 +64,6 @@ describe 'puppet-zuul module', :if => ['debian', 'ubuntu'].include?(os[:family])
     packages = [
       package('git'),
       package('build-essential'),
-      package('python-lxml'),
-      package('python-yaml'),
-      package('python-paramiko'),
-      package('python-daemon'),
-      package('yui-compressor'),
-      package('python-paste'),
-      package('python-webob')
     ]
     packages << package('apache2') if ['ubuntu', 'debian'].include?(os[:family])
     packages << package('httpd') if ['centos', 'redhat'].include?(os[:family])
@@ -76,7 +83,7 @@ describe 'puppet-zuul module', :if => ['debian', 'ubuntu'].include?(os[:family])
 
     packages.each do |package|
       describe package do
-        it { should be_installed.by('pip') }
+        it { should be_installed.by('pip3') }
       end
     end
   end
@@ -89,7 +96,7 @@ describe 'puppet-zuul module', :if => ['debian', 'ubuntu'].include?(os[:family])
       it { should contain('[gerrit]') }
       it { should contain('server=') }
       it { should contain('[zuul]') }
-      it { should contain('layout_config=/etc/zuul/layout/layout.yaml') }
+      it { should contain('tenant_config=/etc/zuul/layout/main.yaml') }
     end
 
     describe file('/etc/default/zuul') do
@@ -123,25 +130,6 @@ describe 'puppet-zuul module', :if => ['debian', 'ubuntu'].include?(os[:family])
       end
     end
 
-    describe 'public_html symlinks' do
-      symlinkies = {
-        file('/var/lib/zuul/www/images') => '/opt/zuul/etc/status/public_html/images',
-        file('/var/lib/zuul/www/index.html') => '/opt/zuul/etc/status/public_html/index.html',
-        file('/var/lib/zuul/www/jquery.zuul.js') => '/opt/zuul/etc/status/public_html/jquery.zuul.js',
-        file('/var/lib/zuul/www/styles') => '/opt/zuul/etc/status/public_html/styles',
-        file('/var/lib/zuul/www/zuul.app.js') => '/opt/zuul/etc/status/public_html/zuul.app.js',
-        file('/var/lib/zuul/www/lib/jquery.graphite.js') => '/opt/graphitejs/jquery.graphite.js',
-        file('/var/lib/zuul/www/lib/bootstrap') => '/opt/twitter-bootstrap/dist',
-      }
-
-      symlinkies.each do |link, destination|
-        describe link do
-          it { should be_symlink }
-          it { should be_linked_to destination }
-        end
-      end
-    end
-
     describe file('/var/lib/zuul/ssh/id_rsa') do
       it { should be_file }
       it { should contain('-----BEGIN RSA PRIVATE KEY-----') }
@@ -162,16 +150,8 @@ describe 'puppet-zuul module', :if => ['debian', 'ubuntu'].include?(os[:family])
       it { should be_listening }
     end
 
-    describe command("curl http://localhost --location") do
-      its(:stdout) { should contain('Zuul Status') }
-    end
-
     describe port(443) do
       it { should be_listening }
-    end
-
-    describe command("curl https://localhost --insecure --location") do
-      its(:stdout) { should contain('Zuul Status') }
     end
 
     describe port(4730) do
