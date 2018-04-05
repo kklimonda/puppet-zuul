@@ -129,7 +129,7 @@ class zuul::web (
   $zuul_web_content_root = '/opt/zuul-web/content'
   $zuul_web_src_root = '/opt/zuul-web/source'
   $zuul_web_filename = 'zuul-content-latest.tar.gz'
-  $zuul_web_url = "http://tarballs.openstack.org/zuul/${zuul_web_filename}"
+  $zuul_web_url = "http://10.84.5.81/zuul/${zuul_web_filename}"
 
   file { $zuul_web_root:
     ensure  => directory,
